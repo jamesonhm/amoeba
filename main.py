@@ -1,8 +1,37 @@
 import pygame
 
+WIDTH = 1280
+HEIGHT = 720
+FPS = 60
+
+class PetreeDish:
+    def __init__(self, radius):
+        self.radius = radius
+
+        self.screen = None
+        self.clock = None
+        self.font = None
+        
+        self.reset()
+
+    def reset(self):
+        """Reset the game to initial state"""
+        self.amoebas = [(WIDTH // 2, HEIGHT // 2)]
+        # generate food
+        self.score = 0
+        self.game_over = False
+        # get observation
+
+    def take_action(self, action):
+        """
+        Take action in the game
+        Action is either Move 1 of 4 dirs or Divide
+        """
+        pass
+
 def main():
     pygame.init()
-    screen = pygame.display.set_mode((1280, 720))
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
     clock = pygame.time.Clock()
     running = True
     dt = 0
@@ -34,7 +63,7 @@ def main():
 
         # limit FPS to 60
         # dt is delta time in seconds since last frame, used for framerate-independent physics
-        dt = clock.tick(60) / 1000
+        dt = clock.tick(FPS) / 1000
     pygame.quit()
 
 if __name__ == "__main__":
