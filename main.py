@@ -1,12 +1,16 @@
+import copy
 import pygame
 
-WIDTH = 1280
-HEIGHT = 720
+from amoeba import Amoeba
+
+SIDE_LENGTH = 720
 FPS = 60
+MOVE_DIST = 30
 
 class PetreeDish:
-    def __init__(self, radius):
-        self.radius = radius
+    def __init__(self):
+        self.vector = pygame.Vector2(SIDE_LENGTH // 2, SIDE_LENGTH // 2)
+        self.radius = 350
 
         self.screen = None
         self.clock = None
@@ -16,7 +20,7 @@ class PetreeDish:
 
     def reset(self):
         """Reset the game to initial state"""
-        self.amoebas = [(WIDTH // 2, HEIGHT // 2)]
+        self.amoebas = [Amoeba(SIDE_LENGTH // 2, SIDE_LENGTH // 2)]
         # generate food
         self.score = 0
         self.game_over = False
@@ -25,18 +29,41 @@ class PetreeDish:
     def take_action(self, action):
         """
         Take action in the game
-        Action is either Move 1 of 4 dirs or Divide
+        Action is either None, Move 1 of 4 dirs, or Divide (reproduce)
         """
-        pass
+        # action in the space [1:5] indicate a move
+        # calculate allowed move
+        max_dist = self.radius - self.amoebas[0].radius
+        player_pos = copy.copy(self.amoebas[0].vector)
+        
+        if action == 0:
+            return None
+        elif action == 1:
+            # up
+            player_pos.y -= MOVE_DIST
+        elif action == 2:
+            # right
+            player_pos.x += MOVE_DIST
+        elif action == 3:
+            # down
+            player_pos.y += MOVE_DIST
+        elif action == 4:
+            # left
+            player_pos.x -= MOVE_DIST
+
+        
+        # update position
+        if self.vector.distance_squared_to(player_pos) < (self.radius - self.amoebas[0].radius)**2:
+            self.amoebas[0].move_to(player_pos.x, player_pos.y)
 
 def main():
     pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    screen = pygame.display.set_mode((SIDE_LENGTH, SIDE_LENGTH))
     clock = pygame.time.Clock()
     running = True
     dt = 0
 
-    player_pos = pygame.Vector2(screen.get_width() / 2, screen.get_height() / 2)
+    game = PetreeDish()
 
     while running:
         # poll for events
@@ -44,19 +71,23 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_w:
+                    game.take_action(1)
+                if event.key == pygame.K_s:
+                    game.take_action(3)
+                if event.key == pygame.K_a:
+                    game.take_action(4)
+                if event.key == pygame.K_d:
+                    game.take_action(2)
+
+
         screen.fill('purple')
+        pygame.draw.circle(screen, 'black', game.vector, game.radius)
 
-        pygame.draw.circle(screen, 'red', player_pos, 40)
+        for amoeba in game.amoebas:
+            pygame.draw.circle(screen, 'red', amoeba.vector, amoeba.radius)
 
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_w]:
-            player_pos.y -= 300 * dt
-        if keys[pygame.K_s]:
-            player_pos.y += 300 * dt
-        if keys[pygame.K_a]:
-            player_pos.x -= 300 * dt
-        if keys[pygame.K_d]:
-            player_pos.x += 300 * dt
 
         # flip() the display to put your work on screen
         pygame.display.flip()
