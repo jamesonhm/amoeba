@@ -1,4 +1,5 @@
 import copy
+import math
 import pygame
 
 from amoeba import Amoeba
@@ -9,7 +10,7 @@ MOVE_DIST = 30
 
 class PetreeDish:
     def __init__(self):
-        self.vector = pygame.Vector2(SIDE_LENGTH // 2, SIDE_LENGTH // 2)
+        self.vector = pygame.math.Vector2(SIDE_LENGTH // 2, SIDE_LENGTH // 2)
         self.radius = 350
 
         self.screen = None
@@ -33,28 +34,46 @@ class PetreeDish:
         """
         # action in the space [1:5] indicate a move
         # calculate allowed move
-        max_dist = self.radius - self.amoebas[0].radius
         player_pos = copy.copy(self.amoebas[0].vector)
         
         if action == 0:
             return None
         elif action == 1:
-            # up
-            player_pos.y -= MOVE_DIST
+            # up, -pi/2 rad
+            max_move = self._max_move(self.amoebas[0], math.pi*(3/2))
+            player_pos.y -= min(MOVE_DIST, max_move)
         elif action == 2:
-            # right
+            # right, 0 rad
             player_pos.x += MOVE_DIST
         elif action == 3:
-            # down
-            player_pos.y += MOVE_DIST
+            # down, pi/2 rad
+            max_move = self._max_move(self.amoebas[0], math.pi/2)
+            player_pos.y += min(MOVE_DIST, max_move)
         elif action == 4:
-            # left
+            # left, -pi rad
             player_pos.x -= MOVE_DIST
 
         
         # update position
-        if self.vector.distance_squared_to(player_pos) < (self.radius - self.amoebas[0].radius)**2:
-            self.amoebas[0].move_to(player_pos.x, player_pos.y)
+        # if self.vector.distance_squared_to(player_pos) < (self.radius - self.amoebas[0].radius)**2:
+        self.amoebas[0].move_to(player_pos.x, player_pos.y)
+
+    def _player_angle(self, player: Amoeba):
+        """
+        angle from center of board circle to player position in radians
+        """
+        return math.atan2((player.vector.y - self.vector.y), (player.vector.x - self.vector.x))
+
+    def _max_move(self, player: Amoeba, dir):
+        """
+        distance from player to the edge in a given direction in radians
+        """
+        max_d = self.radius - player.radius
+        dist = self.vector.distance_to(player.vector)
+        max_move = (max_d - dist) / math.cos(dir - self._player_angle(player))
+        print(f'max_d: {max_d}, dist: {dist}')
+        print(f'max_move = {max_move}')
+        return max_move
 
 def main():
     pygame.init()

@@ -5,7 +5,7 @@ import pygame
 class Amoeba:
     def __init__(self, start_x, start_y):
         self.radius = 30
-        self.vector = pygame.Vector2(start_x, start_y)
+        self.vector = pygame.math.Vector2(start_x, start_y)
         self.energy_max = 300
         self.energy = 200
         self.move_cost = 10
