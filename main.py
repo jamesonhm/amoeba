@@ -39,21 +39,22 @@ class PetreeDish:
         if action == 0:
             return None
         elif action == 1:
-            # up, -pi/2 rad
+            # up, 3pi/2 rad
             max_move = self._max_move(self.amoebas[0], math.pi*(3/2))
-            player_pos.y -= min(MOVE_DIST, max_move)
+            player_pos.y -= min(MOVE_DIST, max(0.0, max_move))
         elif action == 2:
             # right, 0 rad
-            player_pos.x += MOVE_DIST
+            max_move = self._max_move(self.amoebas[0], 0.0)
+            player_pos.x += min(MOVE_DIST, max(0.0, max_move))
         elif action == 3:
             # down, pi/2 rad
             max_move = self._max_move(self.amoebas[0], math.pi/2)
-            player_pos.y += min(MOVE_DIST, max_move)
+            player_pos.y += min(MOVE_DIST, max(0.0, max_move))
         elif action == 4:
-            # left, -pi rad
-            player_pos.x -= MOVE_DIST
+            # left, pi rad
+            max_move = self._max_move(self.amoebas[0], math.pi)
+            player_pos.x -= min(MOVE_DIST, max(0.0, max_move))
 
-        
         # update position
         # if self.vector.distance_squared_to(player_pos) < (self.radius - self.amoebas[0].radius)**2:
         self.amoebas[0].move_to(player_pos.x, player_pos.y)
@@ -67,13 +68,30 @@ class PetreeDish:
     def _max_move(self, player: Amoeba, dir):
         """
         distance from player to the edge in a given direction in radians
+        uses ray-circle intersection: solves t^2 + 2(v dot d)t * (|v|^2 - R^2)  = 0
+        P: player pos
+        C: circle area pos
+        R: radius circle area - player radius (effective radius)
+        v: P - C
+        t: dist to solve for
+        d: direction of move
+        t = -(v dot d) + sqrt([(v dot d)^2 - (|v|^2 - R^2)]
         """
-        max_d = self.radius - player.radius
-        dist = self.vector.distance_to(player.vector)
-        max_move = (max_d - dist) / math.cos(dir - self._player_angle(player))
-        print(f'max_d: {max_d}, dist: {dist}')
-        print(f'max_move = {max_move}')
-        return max_move
+        R = self.radius - player.radius             # effective boundary radius
+
+        dx, dy = math.cos(dir), math.sin(dir)       # unit direction vector
+
+        # Vector from center to player
+        vx = player.vector.x - self.vector.x
+        vy = player.vector.y - self.vector.y
+
+        dot = vx * dx + vy * dy                     # v dot d
+        dist_sq = vx * vx + vy * vy                 # |v|^2
+
+        discriminant = dot * dot - (dist_sq - R * R)    # always >= 0 inside circle
+
+        # positive root = distance to the wall ahead
+        return -dot + math.sqrt(max(0.0, discriminant))
 
 def main():
     pygame.init()
