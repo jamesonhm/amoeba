@@ -1,17 +1,22 @@
 import copy
 import math
+import numpy as np
 import pygame
 
 from amoeba import Amoeba
 
-SIDE_LENGTH = 720
+WIDTH = 1280
+HEIGHT = 720
+CENTER_X = 360
+CENTER_Y = 360
 FPS = 60
 MOVE_DIST = 30
 
 class PetreeDish:
     def __init__(self):
-        self.vector = pygame.math.Vector2(SIDE_LENGTH // 2, SIDE_LENGTH // 2)
+        self.vector = pygame.math.Vector2(CENTER_X, CENTER_Y)
         self.radius = 350
+        self._min_food_dist = 75
 
         self.screen = None
         self.clock = None
@@ -21,8 +26,11 @@ class PetreeDish:
 
     def reset(self):
         """Reset the game to initial state"""
-        self.amoebas = [Amoeba(SIDE_LENGTH // 2, SIDE_LENGTH // 2)]
+        self.amoebas = [Amoeba(CENTER_X, CENTER_Y)]
         # generate food
+        self.food = []
+        self._generate_food()
+
         self.score = 0
         self.game_over = False
         # get observation
@@ -30,40 +38,38 @@ class PetreeDish:
     def take_action(self, action):
         """
         Take action in the game
-        Action is either None, Move 1 of 4 dirs, or Divide (reproduce)
+        Action is either None, Move 1 of 4 dirs, Scan, or Divide (reproduce)
         """
         # action in the space [1:5] indicate a move
-        # calculate allowed move
         player_pos = copy.copy(self.amoebas[0].vector)
         
         if action == 0:
             return None
-        elif action == 1:
+        if action == 1:
             # up, 3pi/2 rad
             max_move = self._max_move(self.amoebas[0], math.pi*(3/2))
-            player_pos.y -= min(MOVE_DIST, max(0.0, max_move))
+            player_pos.y -= min(MOVE_DIST, max_move)
         elif action == 2:
             # right, 0 rad
             max_move = self._max_move(self.amoebas[0], 0.0)
-            player_pos.x += min(MOVE_DIST, max(0.0, max_move))
+            player_pos.x += min(MOVE_DIST,  max_move)
         elif action == 3:
             # down, pi/2 rad
             max_move = self._max_move(self.amoebas[0], math.pi/2)
-            player_pos.y += min(MOVE_DIST, max(0.0, max_move))
+            player_pos.y += min(MOVE_DIST, max_move)
         elif action == 4:
             # left, pi rad
             max_move = self._max_move(self.amoebas[0], math.pi)
-            player_pos.x -= min(MOVE_DIST, max(0.0, max_move))
+            player_pos.x -= min(MOVE_DIST, max_move)
+        elif action == 5:
+            # scan area
+            pass
 
-        # update position
-        # if self.vector.distance_squared_to(player_pos) < (self.radius - self.amoebas[0].radius)**2:
-        self.amoebas[0].move_to(player_pos.x, player_pos.y)
-
-    def _player_angle(self, player: Amoeba):
-        """
-        angle from center of board circle to player position in radians
-        """
-        return math.atan2((player.vector.y - self.vector.y), (player.vector.x - self.vector.x))
+        if action in (1, 2, 3, 4):
+            # update position
+            self.amoebas[0].move_to(player_pos.x, player_pos.y)
+            # check for collisions
+            return
 
     def _max_move(self, player: Amoeba, dir):
         """
@@ -93,9 +99,35 @@ class PetreeDish:
         # positive root = distance to the wall ahead
         return -dot + math.sqrt(max(0.0, discriminant))
 
+    def _generate_food(self):
+        """
+        generate food within the area and at a min distance from any players
+        """
+        proximity = True
+        while proximity:
+            food = self._random_vector_in_area()
+            for amoeba in self.amoebas:
+                if amoeba.vector.distance_squared_to(food) < self._min_food_dist ** 2:
+                    break
+                proximity = False
+            if not proximity:
+                self.food.append(food)
+
+    def _random_vector_in_area(self):
+        theta = float(np.random.uniform(0, 2*np.pi, 1)[0])
+        # square root ensures uniform distribution over the area
+        # r = radius * sqrt(U) where U is uniform (0, 1)
+        r = self.radius * np.sqrt(float(np.random.uniform(0, 1, 1)[0]))
+
+        # convert polar to cartesian and add to area center
+        x = r * np.cos(theta) + self.vector.x
+        y = r * np.sin(theta) + self.vector.y
+
+        return pygame.math.Vector2(float(x), float(y))
+
 def main():
     pygame.init()
-    screen = pygame.display.set_mode((SIDE_LENGTH, SIDE_LENGTH))
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
     clock = pygame.time.Clock()
     running = True
     dt = 0
@@ -124,6 +156,9 @@ def main():
 
         for amoeba in game.amoebas:
             pygame.draw.circle(screen, 'red', amoeba.vector, amoeba.radius)
+
+        for food in game.food:
+            pygame.draw.circle(screen, 'green', food, 10)
 
 
         # flip() the display to put your work on screen

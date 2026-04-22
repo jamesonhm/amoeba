@@ -14,4 +14,5 @@ class Amoeba:
     def move_to(self, new_x, new_y):
         self.vector.x = new_x
         self.vector.y = new_y
+        self.energy -= self.move_cost
 
