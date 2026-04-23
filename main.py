@@ -16,6 +16,7 @@ class PetreeDish:
     def __init__(self):
         self.vector = pygame.math.Vector2(CENTER_X, CENTER_Y)
         self.radius = 350
+        self.food_radius = 10
         self._min_food_dist = 75
 
         self.screen = None
@@ -45,31 +46,44 @@ class PetreeDish:
         
         if action == 0:
             return None
-        if action == 1:
-            # up, 3pi/2 rad
-            max_move = self._max_move(self.amoebas[0], math.pi*(3/2))
-            player_pos.y -= min(MOVE_DIST, max_move)
-        elif action == 2:
-            # right, 0 rad
-            max_move = self._max_move(self.amoebas[0], 0.0)
-            player_pos.x += min(MOVE_DIST,  max_move)
-        elif action == 3:
-            # down, pi/2 rad
-            max_move = self._max_move(self.amoebas[0], math.pi/2)
-            player_pos.y += min(MOVE_DIST, max_move)
-        elif action == 4:
-            # left, pi rad
-            max_move = self._max_move(self.amoebas[0], math.pi)
-            player_pos.x -= min(MOVE_DIST, max_move)
+        if action in (1, 2, 3, 4):
+            if action == 1:
+                # up, 3pi/2 rad
+                max_move = self._max_move(self.amoebas[0], math.pi*(3/2))
+                player_pos.y -= min(MOVE_DIST, max_move)
+            elif action == 2:
+                # right, 0 rad
+                max_move = self._max_move(self.amoebas[0], 0.0)
+                player_pos.x += min(MOVE_DIST,  max_move)
+            elif action == 3:
+                # down, pi/2 rad
+                max_move = self._max_move(self.amoebas[0], math.pi/2)
+                player_pos.y += min(MOVE_DIST, max_move)
+            elif action == 4:
+                # left, pi rad
+                max_move = self._max_move(self.amoebas[0], math.pi)
+                player_pos.x -= min(MOVE_DIST, max_move)
+
+            # update position
+            self.amoebas[0].move_to(player_pos.x, player_pos.y)
+
+            # check food collisions
+            for food in self.food:
+                if self.amoebas[0].vector.distance_squared_to(food) <= (self.amoebas[0].radius + self.food_radius) ** 2:
+                    self.food.remove(food)
+                    self._generate_food()
+
         elif action == 5:
             # scan area
             pass
 
-        if action in (1, 2, 3, 4):
-            # update position
-            self.amoebas[0].move_to(player_pos.x, player_pos.y)
-            # check for collisions
-            return
+    def _get_obs(self):
+        """
+        Current state observation for RL
+        observation space is a dict
+            {"food": np.array[10], "wall": np.array[10], "enemy": np.array[10]}
+        """
+        pass
 
     def _max_move(self, player: Amoeba, dir):
         """
@@ -155,10 +169,12 @@ def main():
         pygame.draw.circle(screen, 'black', game.vector, game.radius)
 
         for amoeba in game.amoebas:
+            for pt in amoeba.obs_array:
+                pygame.draw.line(screen, 'white', amoeba.vector, pt, 1)
             pygame.draw.circle(screen, 'red', amoeba.vector, amoeba.radius)
 
         for food in game.food:
-            pygame.draw.circle(screen, 'green', food, 10)
+            pygame.draw.circle(screen, 'green', food, game.food_radius)
 
 
         # flip() the display to put your work on screen
