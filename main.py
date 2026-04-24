@@ -16,6 +16,7 @@ class PetreeDish:
     def __init__(self):
         self.vector = pygame.math.Vector2(CENTER_X, CENTER_Y)
         self.radius = 350
+
         self.food_radius = 10
         self._min_food_dist = 75
 
@@ -35,13 +36,14 @@ class PetreeDish:
         self.score = 0
         self.game_over = False
         # get observation
+        return self._get_obs()
 
     def take_action(self, action):
         """
         Take action in the game
-        Action is either None, Move 1 of 4 dirs, Scan, or Divide (reproduce)
+        Action is either None, Move 1 of n dirs, Scan, or Divide (reproduce)
         """
-        # action in the space [1:5] indicate a move
+        # action in the space [1:n+1] indicate a move
         player_pos = copy.copy(self.amoebas[0].vector)
         
         if action == 0:
@@ -73,17 +75,18 @@ class PetreeDish:
                     self.food.remove(food)
                     self._generate_food()
 
-        elif action == 5:
-            # scan area
-            pass
+        obs = self._get_obs()
 
     def _get_obs(self):
         """
         Current state observation for RL
         observation space is a dict
-            {"food": np.array[10], "wall": np.array[10], "enemy": np.array[10]}
+            {"food": np.array[10], "enemy": np.array[10], "wall": np.array[10]}
         """
-        pass
+        food = self.amoebas[0].detect(self.food, [self.food_radius] * len(self.food))
+        # enemies = self.amoebas[0].detect(self.enemies)
+        # wall = self.amoebas[0].detect_wall()
+        return {"food": food}
 
     def _max_move(self, player: Amoeba, dir):
         """
