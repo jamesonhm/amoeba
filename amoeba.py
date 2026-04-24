@@ -73,3 +73,33 @@ class Amoeba:
             dists.append(t if t <= self.obs_dist else math.inf)
         return dists
 
+    def detect_wall(self, game):
+        """
+        distance from player to the edge in a given direction in radians
+        uses ray-circle intersection: solves t^2 + 2(v dot d)t * (|v|^2 - R^2)  = 0
+        P: player pos
+        C: circle area pos
+        R: radius circle area
+        v: P - C
+        t: dist to solve for
+        d: direction of move
+        t = -(v dot d) + sqrt([(v dot d)^2 - (|v|^2 - R^2)]
+        """
+        R = game.radius             # effective boundary radius
+        dists = []
+        for dir in self.obs_angles:
+            dx, dy = math.cos(dir), math.sin(dir)       # unit direction vector
+
+            # Vector from center to player
+            vx = game.vector.x - self.vector.x
+            vy = game.vector.y - self.vector.y
+
+            dot = vx * dx + vy * dy                     # v dot d
+            dist_sq = vx * vx + vy * vy                 # |v|^2
+
+            discriminant = dot * dot - (dist_sq - R * R)    # always >= 0 inside circle
+
+            # positive root = distance to the wall ahead
+            dist = -dot + math.sqrt(max(0.0, discriminant))
+            dists.append(dist if dist <= self.obs_dist else math.inf)
+        return dists

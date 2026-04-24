@@ -76,6 +76,9 @@ class PetreeDish:
                     self._generate_food()
 
         obs = self._get_obs()
+        return obs
+        # for k, v in obs.items():
+        #     print(f'{k}: {v}')
 
     def _get_obs(self):
         """
@@ -85,8 +88,8 @@ class PetreeDish:
         """
         food = self.amoebas[0].detect(self.food, [self.food_radius] * len(self.food))
         # enemies = self.amoebas[0].detect(self.enemies)
-        # wall = self.amoebas[0].detect_wall()
-        return {"food": food}
+        wall = self.amoebas[0].detect_wall(self)
+        return {"food": food, "wall": wall}
 
     def _max_move(self, player: Amoeba, dir):
         """
