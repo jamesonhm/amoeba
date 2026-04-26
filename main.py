@@ -145,51 +145,87 @@ class PetreeDish:
 
         return pygame.math.Vector2(float(x), float(y))
 
-def main():
-    pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    clock = pygame.time.Clock()
-    running = True
-    dt = 0
+    def render(self, mode='human'):
+        if self.screen is None:
+            pygame.init()
+            self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+            pygame.display.set_caption("Petree Dish")
+            self.clock = pygame.time.Clock()
+            self.font = pygame.font.Font(None, 32)
 
-    game = PetreeDish()
+        # Clear screen
+        self.screen.fill('purple')
+        pygame.draw.circle(self.screen, 'black', self.vector, self.radius)
 
-    while running:
-        # poll for events
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_w:
-                    game.take_action(1)
-                if event.key == pygame.K_s:
-                    game.take_action(3)
-                if event.key == pygame.K_a:
-                    game.take_action(4)
-                if event.key == pygame.K_d:
-                    game.take_action(2)
-
-
-        screen.fill('purple')
-        pygame.draw.circle(screen, 'black', game.vector, game.radius)
-
-        for amoeba in game.amoebas:
+        # Draw amoeba
+        for amoeba in self.amoebas:
             for pt in amoeba.obs_array:
-                pygame.draw.line(screen, 'white', amoeba.vector, pt, 1)
-            pygame.draw.circle(screen, 'red', amoeba.vector, amoeba.radius)
+                pygame.draw.line(self.screen, 'white', amoeba.vector, pt, 1)
+            pygame.draw.circle(self.screen, 'red', amoeba.vector, amoeba.radius)
 
-        for food in game.food:
-            pygame.draw.circle(screen, 'green', food, game.food_radius)
+        # Draw food
+        for food in self.food:
+            pygame.draw.circle(self.screen, 'green', food, self.food_radius)
+
+        # game over display?
 
 
         # flip() the display to put your work on screen
         pygame.display.flip()
-
         # limit FPS to 60
         # dt is delta time in seconds since last frame, used for framerate-independent physics
-        dt = clock.tick(FPS) / 1000
-    pygame.quit()
+        if self.clock:
+            self.clock.tick()
+
+    def close(self):
+        """Close the rendering window"""
+        if self.screen is not None:
+            pygame.quit()
+            self.screen = None
+
+    def play_manual(self, fps=10):
+        """Play the game with manual controls"""
+        if self.screen is None:
+            self.render()
+
+        paused = False
+        running = True
+
+        while running:
+            # poll for events
+            action = 0
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_w:
+                        action = 1
+                    if event.key == pygame.K_s:
+                        action = 3
+                    if event.key == pygame.K_a:
+                        action = 4
+                    if event.key == pygame.K_d:
+                        action = 2
+
+            if not paused and not self.game_over:
+                self.take_action(action)
+
+            # Render
+            self.render()
+
+        self.close()
+        print(f'GAME ENDED')
+
+def main():
+
+    game = PetreeDish()
+
+    try:
+        game.play_manual()
+    except KeyboardInterrupt:
+        game.close()
+        print("\nGame Interrupt")
 
 if __name__ == "__main__":
     main()
