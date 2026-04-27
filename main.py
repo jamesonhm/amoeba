@@ -4,6 +4,7 @@ import numpy as np
 import pygame
 
 from amoeba import Amoeba
+from food import Food
 
 WIDTH = 1280
 HEIGHT = 720
@@ -17,7 +18,6 @@ class PetreeDish:
         self.vector = pygame.math.Vector2(CENTER_X, CENTER_Y)
         self.radius = 350
 
-        self.food_radius = 10
         self._min_food_dist = 75
 
         self.screen = None
@@ -71,8 +71,9 @@ class PetreeDish:
 
             # check food collisions
             for food in self.food:
-                if self.amoebas[0].vector.distance_squared_to(food) <= (self.amoebas[0].radius + self.food_radius) ** 2:
+                if self.amoebas[0].vector.distance_squared_to(food.vector) <= (self.amoebas[0].radius + food.radius) ** 2:
                     self.food.remove(food)
+                    self.amoebas[0].eat(food)
                     self._generate_food()
 
         obs = self._get_obs()
@@ -86,7 +87,7 @@ class PetreeDish:
         observation space is a dict
             {"food": np.array[10], "enemy": np.array[10], "wall": np.array[10]}
         """
-        food = self.amoebas[0].detect(self.food, [self.food_radius] * len(self.food))
+        food = self.amoebas[0].detect(self.food)
         # enemies = self.amoebas[0].detect(self.enemies)
         wall = self.amoebas[0].detect_wall(self)
         return {"food": food, "wall": wall}
@@ -123,15 +124,17 @@ class PetreeDish:
         """
         generate food within the area and at a min distance from any players
         """
+        food_radius = 10
+        food_energy = 75
         proximity = True
         while proximity:
-            food = self._random_vector_in_area()
+            pos = self._random_vector_in_area()
             for amoeba in self.amoebas:
-                if amoeba.vector.distance_squared_to(food) < self._min_food_dist ** 2:
+                if amoeba.vector.distance_squared_to(pos) < self._min_food_dist ** 2:
                     break
                 proximity = False
             if not proximity:
-                self.food.append(food)
+                self.food.append(Food(pos.x, pos.y, food_radius, food_energy))
 
     def _random_vector_in_area(self):
         theta = float(np.random.uniform(0, 2*np.pi, 1)[0])
@@ -165,8 +168,12 @@ class PetreeDish:
 
         # Draw food
         for food in self.food:
-            pygame.draw.circle(self.screen, 'green', food, self.food_radius)
+            pygame.draw.circle(self.screen, 'green', food.vector, food.radius)
 
+        # Info Text
+        player_energy_text = self.font.render(f"Energy: {self.amoebas[0].energy} / {self.amoebas[0].energy_max}", True, "white")
+        player_energy_loc = (self.radius * 2 + 50, 20)
+        self.screen.blit(player_energy_text, (player_energy_loc))
         # game over display?
 
 

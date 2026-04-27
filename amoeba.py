@@ -9,7 +9,7 @@ class Amoeba:
 
         self.energy_max = 300
         self.energy = 200
-        self.move_cost = 10
+        self.move_cost = 5
         self.divide_cost = 250
 
         self.obs_dist = 90
@@ -35,28 +35,33 @@ class Amoeba:
         self.vector.y = new_y
         self.energy -= self.move_cost
 
-    def detect(self, obj_locs, obj_rads):
+    def eat(self, food):
+        if self.energy + food.energy > self.energy_max:
+            self.energy = self.energy_max
+        else:
+            self.energy += food.energy
+
+    def detect(self, others):
         """
         determines if another object can be seen and if so at what distance
         distance is to the near edge along the direction from self
         Args:
-            obj_locs(list[vector2]): locations of items to detect
-            obj_rads(list[float]): radii of objects
+            obj_locs(list[others]): "other" has an x and y location property and a radius to detect
         Returns:
             dists(list[float]): distances edge to edge for each observation angle
         """
         dists = []
         for dir in self.obs_angles:
             t = math.inf
-            for obj, rad in zip(obj_locs, obj_rads):
+            for other in others:
                 # center to center dist
-                wx = self.vector.x - obj.x
-                wy = self.vector.y - obj.y
+                wx = self.vector.x - other.vector.x
+                wy = self.vector.y - other.vector.y
 
                 dx, dy = math.cos(dir), math.sin(dir)
 
                 dot = wx * dx + wy * dy
-                disc = dot * dot - (wx * wx + wy * wy - rad * rad)
+                disc = dot * dot - (wx * wx + wy * wy - other.radius * other.radius)
                 
                 if disc < 0:
                     continue                    # ray in this dir misses the object
