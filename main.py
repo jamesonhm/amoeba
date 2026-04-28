@@ -41,13 +41,24 @@ class PetreeDish:
     def take_action(self, action):
         """
         Take action in the game
-        Action is either None, Move 1 of n dirs, Scan, or Divide (reproduce)
+        Action is either None, Move 1 of n dirs, or Divide (reproduce)
+        Returns:
+            observation(dict[type]array): the data from _get_obs()
+            reward(int): negative for not moving, slight positive for move, 
+                more positive for eating, most positive for dividing
+            terminated(bool): whether an end condition has been met - player dies
+            truncated(bool): stop condition due to time or number of steps
+            info():?
         """
         # action in the space [1:n+1] indicate a move
         player_pos = copy.copy(self.amoebas[0].vector)
-        
+        reward = -1
+        terminated = False
+        truncated = False
+        info = None
+
         if action == 0:
-            return None
+            return self._get_obs(), reward, terminated, truncated, info
         if action in (1, 2, 3, 4):
             if action == 1:
                 # up, 3pi/2 rad
@@ -66,6 +77,9 @@ class PetreeDish:
                 max_move = self._max_move(self.amoebas[0], math.pi)
                 player_pos.x -= min(MOVE_DIST, max_move)
 
+            if player_pos != self.amoebas[0].vector:
+                # player moved some distance
+                reward += 2
             # update position
             self.amoebas[0].move_to(player_pos.x, player_pos.y)
 
@@ -75,11 +89,15 @@ class PetreeDish:
                     self.food.remove(food)
                     self.amoebas[0].eat(food)
                     self._generate_food()
+                    reward += 9
+                    self.score += reward
+
+        if self.amoebas[0].energy <= 0:
+            terminated = True
+            self.game_over = True
 
         obs = self._get_obs()
-        return obs
-        # for k, v in obs.items():
-        #     print(f'{k}: {v}')
+        return obs, reward, terminated, truncated, info
 
     def _get_obs(self):
         """
@@ -171,9 +189,15 @@ class PetreeDish:
             pygame.draw.circle(self.screen, 'green', food.vector, food.radius)
 
         # Info Text
+        text_x_start = self.radius * 2 + 50
+
         player_energy_text = self.font.render(f"Energy: {self.amoebas[0].energy} / {self.amoebas[0].energy_max}", True, "white")
-        player_energy_loc = (self.radius * 2 + 50, 20)
+        player_energy_loc = (text_x_start, 20)
         self.screen.blit(player_energy_text, (player_energy_loc))
+
+        score_text = self.font.render(f"Score: {self.score}", True, "white")
+        score_loc = (text_x_start, 50)
+        self.screen.blit(score_text, score_loc)
         # game over display?
 
 
@@ -220,6 +244,8 @@ class PetreeDish:
 
             # Render
             self.render()
+
+            self.clock.tick(fps)
 
         self.close()
         print(f'GAME ENDED')
