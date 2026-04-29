@@ -107,7 +107,7 @@ class PetreeDish:
         """
         Current state observation for RL
         observation space is a dict
-            {"food": np.array[10], "enemy": np.array[10], "wall": np.array[10]}
+            {"food": float[10], "enemy": float[10], "wall": float[10]}
         """
         food = self.amoebas[0].detect(self.food)
         # enemies = self.amoebas[0].detect(self.enemies)
