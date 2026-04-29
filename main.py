@@ -50,16 +50,17 @@ class PetreeDish:
             truncated(bool): stop condition due to time or number of steps
             info():?
         """
-        # action in the space [1:n+1] indicate a move
-        player_pos = copy.copy(self.amoebas[0].vector)
         reward = -1
         terminated = False
         truncated = False
-        info = None
 
+        # TODO: count steps and gen food at ~random intervals?
         if action == 0:
-            return self._get_obs(), reward, terminated, truncated, info
+            return self._get_obs(), reward, terminated, truncated, self._get_info()
+
         if action in (1, 2, 3, 4):
+            # action in the space [1:n+1] indicate a move
+            player_pos = copy.copy(self.amoebas[0].vector)
             if action == 1:
                 # up, 3pi/2 rad
                 max_move = self._max_move(self.amoebas[0], math.pi*(3/2))
@@ -89,15 +90,18 @@ class PetreeDish:
                     self.food.remove(food)
                     self.amoebas[0].eat(food)
                     self._generate_food()
-                    reward += 9
+                    reward += 6
+
+                    # max energy is duplication trigger
+                    if self.amoebas[0].energy == self.amoebas[0].energy_max:
+                        reward += 10
                     self.score += reward
 
         if self.amoebas[0].energy <= 0:
             terminated = True
             self.game_over = True
 
-        obs = self._get_obs()
-        return obs, reward, terminated, truncated, info
+        return self._get_obs(), reward, terminated, truncated, self._get_info()
 
     def _get_obs(self):
         """
@@ -109,6 +113,17 @@ class PetreeDish:
         # enemies = self.amoebas[0].detect(self.enemies)
         wall = self.amoebas[0].detect_wall(self)
         return {"food": food, "wall": wall}
+
+    def _get_info(self):
+        """Aux diagnostic info for step & reset"""
+        food = [(f.vector.x, f.vector.y) for f in self.food]
+        players = [(p.vector.x, p.vector.y) for p in self.amoebas]
+        info = {
+            "score": self.score,
+            "food_positions": food,
+            "player_positions": players
+        }
+        return info
 
     def _max_move(self, player: Amoeba, dir):
         """
@@ -198,7 +213,17 @@ class PetreeDish:
         score_text = self.font.render(f"Score: {self.score}", True, "white")
         score_loc = (text_x_start, 50)
         self.screen.blit(score_text, score_loc)
+
         # game over display?
+        if self.game_over:
+            overlay = pygame.Surface(self.screen.get_size())
+            overlay.set_alpha(128)
+            overlay.fill('white')
+            self.screen.blit(overlay, (0, 0))
+
+            game_over_text = self.font.render("GAME OVER", True, 'red')
+            game_over_loc = game_over_text.get_rect(center=(self.vector.x, self.vector.y))
+            self.screen.blit(game_over_text, game_over_loc)
 
 
         # flip() the display to put your work on screen
@@ -244,8 +269,6 @@ class PetreeDish:
 
             # Render
             self.render()
-
-            self.clock.tick(fps)
 
         self.close()
         print(f'GAME ENDED')

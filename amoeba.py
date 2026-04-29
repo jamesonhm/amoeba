@@ -12,7 +12,7 @@ class Amoeba:
         self.move_cost = 5
         self.divide_cost = 250
 
-        self.obs_dist = 90
+        self.obs_dist = 150
         self.obs_count = 20
 
     @property
