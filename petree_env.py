@@ -1,5 +1,6 @@
 import math
 from os import terminal_size
+from typing import Optional
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -32,7 +33,7 @@ class PetreeDishEnv(gym.Env):
         if self.render_mode == "human":
             pygame.init()
 
-    def reset(self, seed=None, options=None):
+    def reset(self, seed:Optional[int]=None, options:Optional[dict]=None):
         """Reset the environment"""
         super().reset(seed=seed)
 
