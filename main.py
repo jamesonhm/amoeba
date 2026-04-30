@@ -56,7 +56,7 @@ class PetreeDish:
 
         # TODO: count steps and gen food at ~random intervals?
         if action == 0:
-            return self._get_obs(), reward, terminated, truncated, self._get_info()
+            return self._get_obs(), reward, terminated, truncated, self.get_info()
 
         if action in (1, 2, 3, 4):
             # action in the space [1:n+1] indicate a move
@@ -101,7 +101,7 @@ class PetreeDish:
             terminated = True
             self.game_over = True
 
-        return self._get_obs(), reward, terminated, truncated, self._get_info()
+        return self._get_obs(), reward, terminated, truncated, self.get_info()
 
     def _get_obs(self):
         """
@@ -109,15 +109,17 @@ class PetreeDish:
         observation space is a dict
             {"food": float[10], "enemy": float[10], "wall": float[10]}
         """
-        food = self.amoebas[0].detect(self.food)
+        food = np.array(self.amoebas[0].detect(self.food), dtype=np.float32)
         # enemies = self.amoebas[0].detect(self.enemies)
-        wall = self.amoebas[0].detect_wall(self)
+        wall = np.array(self.amoebas[0].detect_wall(self), dtype=np.float32)
         return {"food": food, "wall": wall}
 
-    def _get_info(self):
+    def get_info(self):
         """Aux diagnostic info for step & reset"""
-        food = [(f.vector.x, f.vector.y) for f in self.food]
-        players = [(p.vector.x, p.vector.y) for p in self.amoebas]
+        food = [(f.vector.x - self.vector.x, f.vector.y - self.vector.y) for f in self.food]
+        food = np.array(food, dtype=np.float32)
+        players = [(p.vector.x - self.vector.x, p.vector.y - self.vector.y) for p in self.amoebas]
+        players = np.array(players, dtype=np.float32)
         info = {
             "score": self.score,
             "food_positions": food,
