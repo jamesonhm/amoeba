@@ -10,7 +10,7 @@ WIDTH = 1280
 HEIGHT = 720
 CENTER_X = 360
 CENTER_Y = 360
-FPS = 60
+FPS = 2
 MOVE_DIST = 30
 
 class PetreeDish:
@@ -28,7 +28,8 @@ class PetreeDish:
 
     def reset(self):
         """Reset the game to initial state"""
-        self.amoebas = [Amoeba(CENTER_X, CENTER_Y)]
+        pos = self._player_start()
+        self.amoebas = [Amoeba(pos.x, pos.y)]
         # generate food
         self.food = []
         self._generate_food()
@@ -80,7 +81,10 @@ class PetreeDish:
 
             if player_pos != self.amoebas[0].vector:
                 # player moved some distance
-                reward += 2
+                reward += 0.09
+            else:
+                # player chose to move against wall
+                reward -= 2
             # update position
             self.amoebas[0].move_to(player_pos.x, player_pos.y)
 
@@ -90,7 +94,7 @@ class PetreeDish:
                     self.food.remove(food)
                     self.amoebas[0].eat(food)
                     self._generate_food()
-                    reward += 6
+                    reward += 5
 
                     # max energy is duplication trigger
                     if self.amoebas[0].energy == self.amoebas[0].energy_max:
@@ -109,9 +113,12 @@ class PetreeDish:
         observation space is a dict
             {"food": float[10], "enemy": float[10], "wall": float[10]}
         """
-        food = np.array(self.amoebas[0].detect(self.food), dtype=np.float32)
+        amoeba = self.amoebas[0]
+        food = amoeba.detect(self.food)
+        food = amoeba.normalize_detect(food)
         # enemies = self.amoebas[0].detect(self.enemies)
-        wall = np.array(self.amoebas[0].detect_wall(self), dtype=np.float32)
+        wall = amoeba.detect_wall(self)
+        wall = amoeba.normalize_detect(wall)
         return {"food": food, "wall": wall}
 
     def get_info(self):
@@ -154,6 +161,17 @@ class PetreeDish:
 
         # positive root = distance to the wall ahead
         return -dot + math.sqrt(max(0.0, discriminant))
+
+    def _player_start(self):
+        """Return a random position for player start"""
+        prox = True
+        while prox:
+            pos = self._random_vector_in_area()
+            if pos.distance_squared_to(self.vector) > (self.radius - 30) **2:
+                continue
+            if pos.distance_squared_to(self.vector) > (self.radius - 150) ** 2:
+                prox = False
+        return pos
 
     def _generate_food(self):
         """
@@ -241,7 +259,7 @@ class PetreeDish:
             pygame.quit()
             self.screen = None
 
-    def play_manual(self, fps=10):
+    def play_manual(self, fps=2):
         """Play the game with manual controls"""
         if self.screen is None:
             self.render()

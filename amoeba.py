@@ -1,4 +1,5 @@
 import math
+import numpy as np
 import pygame
 
 
@@ -41,6 +42,12 @@ class Amoeba:
         else:
             self.energy += food.energy
 
+    def normalize_detect(self, arr):
+        """Takes an observation raycast array and normalizes to a range of 0.0 - 1.0"""
+        arr = np.array(arr, dtype=np.float32)
+        arr = np.where(np.isinf(arr), 1.0, arr / self.obs_dist)
+        return arr
+
     def detect(self, others):
         """
         determines if another object can be seen and if so at what distance
@@ -52,7 +59,7 @@ class Amoeba:
         """
         dists = []
         for dir in self.obs_angles:
-            t = math.inf
+            t = np.inf
             for other in others:
                 # center to center dist
                 wx = self.vector.x - other.vector.x
@@ -75,7 +82,7 @@ class Amoeba:
 
                 # t_near < 0 means player is already overlapping - use t_far as exit
                 t = t_near if t_near >= 0 else t_far
-            dists.append(t if t <= self.obs_dist else math.inf)
+            dists.append(t if t <= self.obs_dist else np.inf)
         return dists
 
     def detect_wall(self, game):
@@ -106,5 +113,5 @@ class Amoeba:
 
             # positive root = distance to the wall ahead
             dist = -dot + math.sqrt(max(0.0, discriminant))
-            dists.append(dist if dist <= self.obs_dist else math.inf)
+            dists.append(dist if dist <= self.obs_dist else np.inf)
         return dists

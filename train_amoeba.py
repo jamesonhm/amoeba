@@ -1,17 +1,29 @@
-from stable_baselines3 import PPO
+import numpy as np
+import time
 from petree_env import PetreeDishEnv
+from stable_baselines3 import PPO
+from stable_baselines3.common.env_checker import check_env
 
 def train_amoeba(timesteps=100000, render=False):
     """Train Amoeba AI with PPO"""
-
     # Create env
     render_mode = "human" if render else None
     env = PetreeDishEnv(render_mode=render_mode)
 
+    # Check env
+    check_env(env)
+    # Manual inspect
+    obs, info = env.reset()
+    print(f"reset obs: {obs}")
+    print(f"reset info: {info}")
+    print(f"food has nan: {np.any(np.isnan(obs["food"]))}")
+    print(f"wall has nan: {np.any(np.isnan(obs["wall"]))}")
+
     # Create model
     model = PPO(
-        "MlpPolicy",
+        "MultiInputPolicy",
         env,
+        ent_coef=0.01,
         verbose=1,
         learning_rate=0.0003,
         n_steps=2048,
@@ -26,10 +38,10 @@ def train_amoeba(timesteps=100000, render=False):
     # Save the model
     model.save("amoeba_model")
     print("model saved as 'amoeba_model'")
-    env.close()
+    # env.close()
     return model
 
-def play_trained_model(model_path="amoeba_model", episodes=1):
+def play_trained_model(model_path="amoeba_model", episodes=3, fps=10):
     """Watch the trained model play"""
     print(f"Loading model: {model_path}")
 
@@ -41,20 +53,26 @@ def play_trained_model(model_path="amoeba_model", episodes=1):
     print(f"Watching trained agent play {episodes} episodes...")
     print("Close the window to stop early")
 
+    frame_duration = 1.0 / fps  # seconds per frame
     scores = []
     for e in range(episodes):
         obs, info = env.reset()
         done = False
-
         print(f"Episode {e + 1}")
 
         while not done:
+            start = time.perf_counter()
+
             # Get action from model
             action, _ = model.predict(obs, deterministic=True)
 
             # Take step
             obs, _, term, trunc, info = env.step(action)
             done = term or trunc
+
+            # sleep for remainder of frame budget
+            elapsed = time.perf_counter() - start
+            time.sleep(max(0, frame_duration - elapsed))
 
         score = info.get('score', 0)
         scores.append(score)
