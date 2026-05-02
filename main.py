@@ -81,7 +81,7 @@ class PetreeDish:
 
             if player_pos != self.amoebas[0].vector:
                 # player moved some distance
-                reward += 0.09
+                reward += 0.05
             else:
                 # player chose to move against wall
                 reward -= 2
@@ -105,7 +105,18 @@ class PetreeDish:
             terminated = True
             self.game_over = True
 
-        return self._get_obs(), reward, terminated, truncated, self.get_info()
+        prev_obs = self.amoebas[0].recall()
+        obs = self._get_obs()
+        if prev_obs is not None:
+            # print(f"prev obs food: {prev_obs['food']}")
+            # print(f"curr obs food: {obs['food']}")
+            delta = [prev - curr for prev, curr in zip(prev_obs["food"], obs["food"])]
+            # print(f"delta dists: {delta}")
+            # print(f"max delta: {max(delta)}")
+            if any(d > 0 for d in delta):
+                reward += max(delta) * 2
+        self.amoebas[0].store(obs)
+        return obs, reward, terminated, truncated, self.get_info()
 
     def _get_obs(self):
         """

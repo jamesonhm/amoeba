@@ -16,6 +16,8 @@ class Amoeba:
         self.obs_dist = 150
         self.obs_count = 20
 
+        self._memory = None
+
     @property
     def position(self):
         return self.vector.x, self.vector.y
@@ -30,6 +32,18 @@ class Amoeba:
         x, y = self.vector.x, self.vector.y
         d = self.obs_dist
         return [((d * math.cos(angle)) + x, (d * math.sin(angle)) + y) for angle in angles]
+
+    def store(self, prev_obs):
+        """
+        Save an observation for future refence
+        Args:
+            prev_obs(dict[string]float32): dict of previous observations
+        """
+
+        self._memory = prev_obs
+
+    def recall(self):
+        return self._memory
 
     def move_to(self, new_x, new_y):
         self.vector.x = new_x
@@ -53,7 +67,7 @@ class Amoeba:
         determines if another object can be seen and if so at what distance
         distance is to the near edge along the direction from self
         Args:
-            obj_locs(list[others]): "other" has an x and y location property and a radius to detect
+            others(list[other]): "other" has an x and y location property and a radius
         Returns:
             dists(list[float]): distances edge to edge for each observation angle
         """
