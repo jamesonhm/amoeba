@@ -1,3 +1,4 @@
+from collections import deque
 import copy
 import math
 import numpy as np
@@ -28,8 +29,10 @@ class PetreeDish:
 
     def reset(self):
         """Reset the game to initial state"""
+        self._step_count = 0
         pos = self._player_start()
-        self.amoebas = [Amoeba(pos.x, pos.y)]
+        self.amoebas = [Amoeba(pos.x, pos.y, 40)]
+        self._position_history = deque([self._to_grid(pos)], 10)
         # generate food
         self.food = []
         self._generate_food()
@@ -51,70 +54,77 @@ class PetreeDish:
             truncated(bool): stop condition due to time or number of steps
             info():?
         """
-        reward = -1
+        reward = -0.05
         terminated = False
         truncated = False
 
-        # TODO: count steps and gen food at ~random intervals?
+        self._step_count += 1
+        interval = 3
+        if self._step_count % interval == 0:
+            if len(self.food) < 3:
+                self._generate_food()
+
+        prev_food_dist = self._distance_to_nearest(self.food)
+
+        # action in the space [1:n+1] indicate a move
+        player_pos = copy.copy(self.amoebas[0].vector)
         if action == 0:
-            return self._get_obs(), reward, terminated, truncated, self.get_info()
+            # up, 3pi/2 rad
+            max_move = self._max_move(self.amoebas[0], math.pi*(3/2))
+            player_pos.y -= min(MOVE_DIST, max_move)
+        elif action == 1:
+            # right, 0 rad
+            max_move = self._max_move(self.amoebas[0], 0.0)
+            player_pos.x += min(MOVE_DIST,  max_move)
+        elif action == 2:
+            # down, pi/2 rad
+            max_move = self._max_move(self.amoebas[0], math.pi/2)
+            player_pos.y += min(MOVE_DIST, max_move)
+        elif action == 3:
+            # left, pi rad
+            max_move = self._max_move(self.amoebas[0], math.pi)
+            player_pos.x -= min(MOVE_DIST, max_move)
 
-        if action in (1, 2, 3, 4):
-            # action in the space [1:n+1] indicate a move
-            player_pos = copy.copy(self.amoebas[0].vector)
-            if action == 1:
-                # up, 3pi/2 rad
-                max_move = self._max_move(self.amoebas[0], math.pi*(3/2))
-                player_pos.y -= min(MOVE_DIST, max_move)
-            elif action == 2:
-                # right, 0 rad
-                max_move = self._max_move(self.amoebas[0], 0.0)
-                player_pos.x += min(MOVE_DIST,  max_move)
-            elif action == 3:
-                # down, pi/2 rad
-                max_move = self._max_move(self.amoebas[0], math.pi/2)
-                player_pos.y += min(MOVE_DIST, max_move)
-            elif action == 4:
-                # left, pi rad
-                max_move = self._max_move(self.amoebas[0], math.pi)
-                player_pos.x -= min(MOVE_DIST, max_move)
+        if player_pos == self.amoebas[0].vector:
+            # player chose to move against wall
+            reward -= 2
 
-            if player_pos != self.amoebas[0].vector:
-                # player moved some distance
-                reward += 0.05
+        # update position
+        self.amoebas[0].move_to(player_pos.x, player_pos.y)
+
+        # penalize looping
+        grid_pos = self._to_grid(player_pos)
+        if grid_pos in self._position_history:
+            reward -= 2
+        self._position_history.append(grid_pos)
+
+        # progress reward
+        if len(self.food):
+            curr_food_dist = self._distance_to_nearest(self.food)
+            progress = (prev_food_dist - curr_food_dist) / MOVE_DIST
+            if progress < 0:
+                reward += progress * 1.0
             else:
-                # player chose to move against wall
-                reward -= 2
-            # update position
-            self.amoebas[0].move_to(player_pos.x, player_pos.y)
+                reward += progress * 2.0
 
-            # check food collisions
-            for food in self.food:
-                if self.amoebas[0].vector.distance_squared_to(food.vector) <= (self.amoebas[0].radius + food.radius) ** 2:
-                    self.food.remove(food)
-                    self.amoebas[0].eat(food)
-                    self._generate_food()
-                    reward += 5
+        # check food collisions
+        for food in self.food:
+            if self.amoebas[0].vector.distance_squared_to(food.vector) <= (self.amoebas[0].radius + food.radius) ** 2:
+                self.food.remove(food)
+                self.amoebas[0].eat(food)
+                # self._generate_food()
+                reward += 5
 
-                    # max energy is duplication trigger
-                    if self.amoebas[0].energy == self.amoebas[0].energy_max:
-                        reward += 10
-                    self.score += reward
+                # max energy is duplication trigger
+                if self.amoebas[0].energy == self.amoebas[0].energy_max:
+                    reward += 10
+                self.score += reward
 
         if self.amoebas[0].energy <= 0:
             terminated = True
             self.game_over = True
 
-        prev_obs = self.amoebas[0].recall()
         obs = self._get_obs()
-        if prev_obs is not None:
-            # print(f"prev obs food: {prev_obs['food']}")
-            # print(f"curr obs food: {obs['food']}")
-            delta = [prev - curr for prev, curr in zip(prev_obs["food"], obs["food"])]
-            # print(f"delta dists: {delta}")
-            # print(f"max delta: {max(delta)}")
-            if any(d > 0 for d in delta):
-                reward += max(delta) * 2
         self.amoebas[0].store(obs)
         return obs, reward, terminated, truncated, self.get_info()
 
@@ -212,6 +222,14 @@ class PetreeDish:
 
         return pygame.math.Vector2(float(x), float(y))
 
+    def _distance_to_nearest(self, others):
+        if not others:
+            return float('inf')
+        return min(self.amoebas[0].vector.distance_to(other.vector) for other in others)
+
+    def _to_grid(self, pos, cell_size=5):
+        return (int(pos.x // cell_size), int(pos.y // cell_size))
+
     def render(self, mode='human'):
         if self.screen is None:
             pygame.init()
@@ -241,7 +259,7 @@ class PetreeDish:
         player_energy_loc = (text_x_start, 20)
         self.screen.blit(player_energy_text, (player_energy_loc))
 
-        score_text = self.font.render(f"Score: {self.score}", True, "white")
+        score_text = self.font.render(f"Score: {round(self.score, 1)}", True, "white")
         score_loc = (text_x_start, 50)
         self.screen.blit(score_text, score_loc)
 
@@ -287,16 +305,16 @@ class PetreeDish:
 
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_w:
-                        action = 1
+                        action = 0
                     if event.key == pygame.K_s:
-                        action = 3
-                    if event.key == pygame.K_a:
-                        action = 4
-                    if event.key == pygame.K_d:
                         action = 2
+                    if event.key == pygame.K_a:
+                        action = 3
+                    if event.key == pygame.K_d:
+                        action = 1
 
-            if not paused and not self.game_over:
-                self.take_action(action)
+                    if not paused and not self.game_over:
+                        self.take_action(action)
 
             # Render
             self.render()

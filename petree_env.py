@@ -25,8 +25,8 @@ class PetreeDishEnv(gym.Env):
         # Observation Space
         self.observation_space = spaces.Dict(
             {
-                "food": spaces.Box(low=0.0, high=1.0, shape=(20,), dtype=np.float32),
-                "wall": spaces.Box(low=0.0, high=1.0, shape=(20,), dtype=np.float32),
+                "food": spaces.Box(low=0.0, high=1.0, shape=(40,), dtype=np.float32),
+                "wall": spaces.Box(low=0.0, high=1.0, shape=(40,), dtype=np.float32),
             }
         )
 

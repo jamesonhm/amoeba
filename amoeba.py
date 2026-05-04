@@ -4,7 +4,7 @@ import pygame
 
 
 class Amoeba:
-    def __init__(self, start_x, start_y):
+    def __init__(self, start_x, start_y, obs_count):
         self.radius = 30
         self.vector = pygame.math.Vector2(start_x, start_y)
 
@@ -14,7 +14,7 @@ class Amoeba:
         self.divide_cost = 250
 
         self.obs_dist = 150
-        self.obs_count = 20
+        self.obs_count = obs_count
 
         self._memory = None
 
