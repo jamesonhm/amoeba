@@ -10,7 +10,7 @@ class Amoeba:
 
         self.energy_max = 300
         self.energy = 200
-        self.move_cost = 5
+        self.move_cost = 2
         self.divide_cost = 250
 
         self.obs_dist = 150
@@ -58,11 +58,39 @@ class Amoeba:
 
     def normalize_detect(self, arr):
         """Takes an observation raycast array and normalizes to a range of 0.0 - 1.0"""
-        arr = np.array(arr, dtype=np.float32)
-        arr = np.where(np.isinf(arr), 1.0, arr / self.obs_dist)
+        # arr = np.array(arr, dtype=np.float32)
+        # arr = np.where(np.isinf(arr), 1.0, arr / self.obs_dist)
+        arr = [1.0 if np.isinf(a) else a / self.obs_dist for a in arr]
         return arr
 
-    def detect(self, others):
+    def detect(self, game, food, enemies):
+        """
+        detect all foreign entities and walls
+        Args:
+            game(pygame): game instance
+            food(list[food]): list of type "food", requires an 'x', 'y', and radius prop
+            enemies(list[enemy]): list of type "enemy", requires an 'x', 'y', and radius prop
+        Returns:
+            combined(list[list[n_rays * 3/4]]): full observation array of n_rays rows by 3 or 4 cols
+                [distance, type_wall, type_food, Optional[type_enemy]]
+        """
+        wall_dists = self.normalize_detect(self.detect_wall(game))
+        food_dists = self.normalize_detect(self.detect_others(food))
+        if enemies is None:
+            enemy_dists = [1.0] * self.obs_count
+        else:
+            enemy_dists = self.detect_others(enemies)
+
+        combined = []
+        for w, f, e in zip(wall_dists, food_dists, enemy_dists):
+            flags = [1 if w < min(f, e) else 0, 1 if f < min(w, e) else 0]
+            if enemies is not None:
+                flags += [1 if e < min(w, f) else 0]
+            combined.append([min(w, f, e)] + flags)
+
+        return combined
+
+    def detect_others(self, others):
         """
         determines if another object can be seen and if so at what distance
         distance is to the near edge along the direction from self
@@ -117,8 +145,10 @@ class Amoeba:
             dx, dy = math.cos(dir), math.sin(dir)       # unit direction vector
 
             # Vector from center to player
-            vx = game.vector.x - self.vector.x
-            vy = game.vector.y - self.vector.y
+            # vx = game.vector.x - self.vector.x
+            # vy = game.vector.y - self.vector.y
+            vx = self.vector.x - game.vector.x
+            vy = self.vector.y - game.vector.y
 
             dot = vx * dx + vy * dy                     # v dot d
             dist_sq = vx * vx + vy * vy                 # |v|^2

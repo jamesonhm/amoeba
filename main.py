@@ -12,7 +12,7 @@ HEIGHT = 720
 CENTER_X = 360
 CENTER_Y = 360
 FPS = 2
-MOVE_DIST = 30
+MOVE_DIST = 15
 
 class PetreeDish:
     def __init__(self):
@@ -31,7 +31,7 @@ class PetreeDish:
         """Reset the game to initial state"""
         self._step_count = 0
         pos = self._player_start()
-        self.amoebas = [Amoeba(pos.x, pos.y, 40)]
+        self.amoebas = [Amoeba(pos.x, pos.y, 16)]
         self._position_history = deque([self._to_grid(pos)], 10)
         # generate food
         self.food = []
@@ -135,12 +135,18 @@ class PetreeDish:
             {"food": float[10], "enemy": float[10], "wall": float[10]}
         """
         amoeba = self.amoebas[0]
-        food = amoeba.detect(self.food)
-        food = amoeba.normalize_detect(food)
-        # enemies = self.amoebas[0].detect(self.enemies)
-        wall = amoeba.detect_wall(self)
-        wall = amoeba.normalize_detect(wall)
-        return {"food": food, "wall": wall}
+        # food = amoeba.detect_others(self.food)
+        # food = amoeba.normalize_detect(food)
+        # # enemies = self.amoebas[0].detect(self.enemies)
+        # wall = amoeba.detect_wall(self)
+        # wall = amoeba.normalize_detect(wall)
+        # return {"food": food, "wall": wall}
+        obs = amoeba.detect(self, self.food, None)
+        obs_angles = [a * (180 / math.pi) for a in amoeba.obs_angles]
+        print("OBS: ")
+        for angle, row in zip(obs_angles, obs):
+            print(f"{angle} | {row}")
+        return obs
 
     def get_info(self):
         """Aux diagnostic info for step & reset"""
@@ -244,7 +250,10 @@ class PetreeDish:
 
         # Draw amoeba
         for amoeba in self.amoebas:
-            for pt in amoeba.obs_array:
+            angles = [a * (180 / math.pi) for a in amoeba.obs_angles]
+            for angle, pt in zip(angles, amoeba.obs_array):
+                lbl = self.font.render(f"{round(angle, 1)}", True, "white")
+                self.screen.blit(lbl, pt)
                 pygame.draw.line(self.screen, 'white', amoeba.vector, pt, 1)
             pygame.draw.circle(self.screen, 'red', amoeba.vector, amoeba.radius)
 
