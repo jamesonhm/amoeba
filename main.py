@@ -19,7 +19,7 @@ class PetreeDish:
         self.vector = pygame.math.Vector2(CENTER_X, CENTER_Y)
         self.radius = 350
 
-        self._min_food_dist = 75
+        self._min_food_dist = 150
 
         self.screen = None
         self.clock = None
@@ -32,7 +32,7 @@ class PetreeDish:
         self._step_count = 0
         pos = self._player_start()
         self.amoebas = [Amoeba(pos.x, pos.y, 16)]
-        self._position_history = deque([self._to_grid(pos)], 10)
+        self._position_history = deque([self._to_grid(pos)], 50)
         # generate food
         self.food = []
         self._generate_food()
@@ -54,7 +54,7 @@ class PetreeDish:
             truncated(bool): stop condition due to time or number of steps
             info():?
         """
-        reward = -0.05
+        step_reward = -0.02
         terminated = False
         truncated = False
 
@@ -64,9 +64,7 @@ class PetreeDish:
             if len(self.food) < 3:
                 self._generate_food()
 
-        prev_food_dist = self._distance_to_nearest(self.food)
-
-        # action in the space [1:n+1] indicate a move
+        # action in the space [0:n+1] indicate a move
         player_pos = copy.copy(self.amoebas[0].vector)
         if action == 0:
             # up, 3pi/2 rad
@@ -87,7 +85,9 @@ class PetreeDish:
 
         if player_pos == self.amoebas[0].vector:
             # player chose to move against wall
-            reward -= 2
+            move_reward = self.amoebas[0].move_cost * -2
+        else:
+            move_reward = self.amoebas[0].move_cost * -0.5
 
         # update position
         self.amoebas[0].move_to(player_pos.x, player_pos.y)
@@ -95,37 +95,45 @@ class PetreeDish:
         # penalize looping
         grid_pos = self._to_grid(player_pos)
         if grid_pos in self._position_history:
-            reward -= 2
+            move_reward -= 2
         self._position_history.append(grid_pos)
 
+        # take obs here to calc progress
+        obs = self._get_obs()
+
         # progress reward
+        progress_reward = 0
         if len(self.food):
-            curr_food_dist = self._distance_to_nearest(self.food)
-            progress = (prev_food_dist - curr_food_dist) / MOVE_DIST
-            if progress < 0:
-                reward += progress * 1.0
+            progress = self.amoebas[0].proximity_delta()
+            # print(f"progress: {progress}")
+            if progress > 0:
+                progress_reward = progress * 10
             else:
-                reward += progress * 2.0
+                progress_reward = progress * 5
+
 
         # check food collisions
+        eat_reward = 0
         for food in self.food:
             if self.amoebas[0].vector.distance_squared_to(food.vector) <= (self.amoebas[0].radius + food.radius) ** 2:
                 self.food.remove(food)
                 self.amoebas[0].eat(food)
-                # self._generate_food()
-                reward += 5
+                eat_reward = 10
 
                 # max energy is duplication trigger
                 if self.amoebas[0].energy == self.amoebas[0].energy_max:
-                    reward += 10
-                self.score += reward
+                    eat_reward += 50
+                self.score += eat_reward
 
+        reward = step_reward + move_reward + progress_reward + eat_reward
+        # print(f"step_reward: {step_reward} + move_reward: {move_reward} + progress_reward: {progress_reward} + eat_reward: {eat_reward} = reward: {reward}")
+
+        # Death condition
         if self.amoebas[0].energy <= 0:
+            reward = -20
             terminated = True
             self.game_over = True
 
-        obs = self._get_obs()
-        self.amoebas[0].store(obs)
         return obs, reward, terminated, truncated, self.get_info()
 
     def _get_obs(self):
@@ -135,17 +143,12 @@ class PetreeDish:
             {"food": float[10], "enemy": float[10], "wall": float[10]}
         """
         amoeba = self.amoebas[0]
-        # food = amoeba.detect_others(self.food)
-        # food = amoeba.normalize_detect(food)
-        # # enemies = self.amoebas[0].detect(self.enemies)
-        # wall = amoeba.detect_wall(self)
-        # wall = amoeba.normalize_detect(wall)
-        # return {"food": food, "wall": wall}
         obs = amoeba.detect(self, self.food, None)
-        obs_angles = [a * (180 / math.pi) for a in amoeba.obs_angles]
-        print("OBS: ")
-        for angle, row in zip(obs_angles, obs):
-            print(f"{angle} | {row}")
+        # obs_angles = [a * (180 / math.pi) for a in amoeba.obs_angles]
+        # print("OBS: ")
+        # for angle, row in zip(obs_angles, obs):
+        #     print(f"{angle} | {row}")
+        obs = np.array(obs, dtype=np.float32).flatten()
         return obs
 
     def get_info(self):

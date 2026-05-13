@@ -1,5 +1,3 @@
-import math
-from os import terminal_size
 from typing import Optional
 import gymnasium as gym
 from gymnasium import spaces
@@ -23,12 +21,7 @@ class PetreeDishEnv(gym.Env):
         self.action_space = spaces.Discrete(5)
 
         # Observation Space
-        self.observation_space = spaces.Dict(
-            {
-                "food": spaces.Box(low=0.0, high=1.0, shape=(40,), dtype=np.float32),
-                "wall": spaces.Box(low=0.0, high=1.0, shape=(40,), dtype=np.float32),
-            }
-        )
+        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(48,), dtype=np.float32)
 
         if self.render_mode == "human":
             pygame.init()

@@ -1,8 +1,6 @@
-import numpy as np
 import time
 from petree_env import PetreeDishEnv
 from stable_baselines3 import PPO
-from stable_baselines3.common.env_checker import check_env
 
 def train_amoeba(timesteps=100000, render=False):
     """Train Amoeba AI with PPO"""
@@ -10,20 +8,11 @@ def train_amoeba(timesteps=100000, render=False):
     render_mode = "human" if render else None
     env = PetreeDishEnv(render_mode=render_mode)
 
-    # Check env
-    check_env(env)
-    # Manual inspect
-    obs, info = env.reset()
-    print(f"reset obs: {obs}")
-    print(f"reset info: {info}")
-    print(f"food has nan: {np.any(np.isnan(obs["food"]))}")
-    print(f"wall has nan: {np.any(np.isnan(obs["wall"]))}")
-
     # Create model
     model = PPO(
-        "MultiInputPolicy",
+        "MlpPolicy",
         env,
-        ent_coef=0.01,
+        ent_coef=0.05,
         verbose=1,
         learning_rate=0.0003,
         n_steps=2048,

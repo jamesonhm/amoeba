@@ -1,3 +1,4 @@
+import copy
 import math
 import numpy as np
 import pygame
@@ -16,7 +17,8 @@ class Amoeba:
         self.obs_dist = 150
         self.obs_count = obs_count
 
-        self._memory = None
+        self._prev_obs = None
+        self._curr_obs = None
 
     @property
     def position(self):
@@ -33,18 +35,6 @@ class Amoeba:
         d = self.obs_dist
         return [((d * math.cos(angle)) + x, (d * math.sin(angle)) + y) for angle in angles]
 
-    def store(self, prev_obs):
-        """
-        Save an observation for future refence
-        Args:
-            prev_obs(dict[string]float32): dict of previous observations
-        """
-
-        self._memory = prev_obs
-
-    def recall(self):
-        return self._memory
-
     def move_to(self, new_x, new_y):
         self.vector.x = new_x
         self.vector.y = new_y
@@ -56,10 +46,17 @@ class Amoeba:
         else:
             self.energy += food.energy
 
+    def proximity_delta(self):
+        if self._curr_obs is None or self._prev_obs is None:
+            return 0.0
+        prev_food_dists = [ray[0] for ray in self._prev_obs if ray[2] == 1]
+        curr_food_dists = [ray[0] for ray in self._curr_obs if ray[2] == 1]
+        prev = min(prev_food_dists) if prev_food_dists else 1.0
+        curr = min(curr_food_dists) if curr_food_dists else 1.0
+        return prev - curr
+
     def normalize_detect(self, arr):
         """Takes an observation raycast array and normalizes to a range of 0.0 - 1.0"""
-        # arr = np.array(arr, dtype=np.float32)
-        # arr = np.where(np.isinf(arr), 1.0, arr / self.obs_dist)
         arr = [1.0 if np.isinf(a) else a / self.obs_dist for a in arr]
         return arr
 
@@ -71,9 +68,10 @@ class Amoeba:
             food(list[food]): list of type "food", requires an 'x', 'y', and radius prop
             enemies(list[enemy]): list of type "enemy", requires an 'x', 'y', and radius prop
         Returns:
-            combined(list[list[n_rays * 3/4]]): full observation array of n_rays rows by 3 or 4 cols
+            combined(list[list[n_rays * 3|4]]): full observation array of n_rays rows by 3 or 4 cols
                 [distance, type_wall, type_food, Optional[type_enemy]]
         """
+        self._prev_obs = copy.copy(self._curr_obs)
         wall_dists = self.normalize_detect(self.detect_wall(game))
         food_dists = self.normalize_detect(self.detect_others(food))
         if enemies is None:
@@ -88,6 +86,7 @@ class Amoeba:
                 flags += [1 if e < min(w, f) else 0]
             combined.append([min(w, f, e)] + flags)
 
+        self._curr_obs = combined
         return combined
 
     def detect_others(self, others):
@@ -139,14 +138,12 @@ class Amoeba:
         d: direction of move
         t = -(v dot d) + sqrt([(v dot d)^2 - (|v|^2 - R^2)]
         """
-        R = game.radius             # effective boundary radius
+        R = game.radius                                 # effective boundary radius
         dists = []
         for dir in self.obs_angles:
             dx, dy = math.cos(dir), math.sin(dir)       # unit direction vector
 
             # Vector from center to player
-            # vx = game.vector.x - self.vector.x
-            # vy = game.vector.y - self.vector.y
             vx = self.vector.x - game.vector.x
             vy = self.vector.y - game.vector.y
 
